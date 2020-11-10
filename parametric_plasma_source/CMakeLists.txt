@@ -66,19 +66,21 @@ if(OpenMC_FOUND)
     target_link_libraries(source_sampling ${OPENMC_LIB} gfortran)
   endif()
 
-  # Build source_generator if OpenMC is available
-  list(APPEND source_generator_SOURCES
-    ${SRC_DIR}/source_generator.cpp
-  )
+  if(EXISTS "${SRC_DIR}/source_generator.cpp")
+    # Build source_generator if OpenMC is available
+    list(APPEND source_generator_SOURCES
+      ${SRC_DIR}/source_generator.cpp
+    )
 
-  add_executable(source_generator ${source_generator_SOURCES})
+    add_executable(source_generator ${source_generator_SOURCES})
 
-  find_package(HDF5 REQUIRED)
+    find_package(HDF5 REQUIRED)
 
-  set_target_properties(source_generator PROPERTIES POSITION_INDEPENDENT_CODE ON)
-  target_include_directories(source_generator PUBLIC ${OPENMC_INC_DIR})
-  target_include_directories(source_generator PUBLIC ${HDF5_INCLUDE_DIRS})
-  target_link_libraries(source_generator ${OPENMC_LIB} ${HDF5_LIBRARIES} stdc++fs)
+    set_target_properties(source_generator PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(source_generator PUBLIC ${OPENMC_INC_DIR})
+    target_include_directories(source_generator PUBLIC ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(source_generator ${OPENMC_LIB} ${HDF5_LIBRARIES} stdc++fs)
+  endif()
 else()
   message(WARNING "Unable to find OpenMC installation - the source_sampling plugin and source_generator executable will not be built.")
 endif()
