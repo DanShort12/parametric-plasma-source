@@ -1,10 +1,11 @@
-# parametric-plasma-source
+# Parametric Plasma Source
 
 [![Python package](https://github.com/open-radiation-sources/parametric-plasma-source/workflows/python_package/badge.svg)](https://pypi.org/project/parametric-plasma-source/)
 
 [![ActionsCI](https://github.com/open-radiation-sources/parametric-plasma-source/workflows/python_package/badge.svg)](https://github.com/open-radiation-sources/parametric-plasma-source/actions?query=workflow%3Apython_package)
 
-Python package, C++ source and build files for parametric plasma source for use in fusion neutron transport calculations with OpenMC.
+Python package, C++ source and build files for parametric plasma source for use
+in fusion neutron transport calculations with OpenMC.
 
 The plasma source is based on a paper by [C. Fausser et al](https://www.sciencedirect.com/science/article/pii/S0920379612000853)
 
@@ -16,10 +17,12 @@ The plasma source is based on a paper by [C. Fausser et al](https://www.scienced
 
 ### Installing from source
 
-Installation of the parametric plasma source from source requires cmake to build the underlying C++ code. This can be obtained from
-your OS's package manager by e.g. `sudo apt-get install cmake` or from cmake source.
+Installation of the parametric plasma source from source requires cmake to
+build the underlying C++ code. This can be obtained from your OS's package
+manager by e.g. `sudo apt-get install cmake` or from cmake source.
 
-If you intend to develop the code then it is recommended to work in a virtual environment.
+If you intend to develop the code then it is recommended to work in a virtual
+environment.
 
 The requirements for developing the code can be installed by running:
 
@@ -29,15 +32,48 @@ The package can be built and installed in editable mode by:
 
 ```pip install -e .```
 
+### Compiling from source
+
+Compiling of the parametric plasma source from source is another method of
+using the software.
+
+First clone the openmc repository into your home directory
+```bash
+cd ~
+git clone https://github.com/openmc-dev/openmc.git
+```
+Then clone the parametric plasma source repository
+
+```bash
+git clone https://github.com/open-radiation-sources/parametric-plasma-source.git
+```
+
+Then create a build folder and compile from the folder. This assumes that
+openmc repository was cloned into your home directory ```~/openmc```.
+
+```bash
+cd parametric-plasma-source
+mkdir build
+cd build
+cmake .. -DOPENMC_DIR=~/openmc
+make
+```
+
+This final ```make``` command will create a ```source_sampling.so``` file that
+can then be used.
+
 ## Usage
 
-The parametric plasma source can be sampled either directly in Python 3, sampled in an OpenMC simulation, or sampled using OpenMC via a standalone executable without simulation.
+The parametric plasma source can be sampled either directly in Python 3,
+sampled in an OpenMC simulation, or sampled using OpenMC via a standalone
+executable without simulation.
 
 For a better understanding of the varibles take a look at the [C. Fausser et al](https://www.sciencedirect.com/science/article/pii/S0920379612000853) paper.
 
 ### Sampling in Python
 
-The parametric plasma source can be imported an used in Python 3 in the following manner:
+The parametric plasma source can be imported an used in Python 3 in the
+following manner:
 
 ```[python]
 from parametric_plasma_source import PlasmaSource
@@ -71,9 +107,11 @@ particle_energy_mev = sample[6]
 
 ### Sampling in OpenMC
 
-The parametric plasma source also contains a plugin library for OpenMC to allow the source to be sampled in an OpenMC simulation.
+The parametric plasma source also contains a plugin library for OpenMC to allow
+the source to be sampled in an OpenMC simulation.
 
-When using the OpenMC sampling the inputs must be provided in meters where applicable (the sampling will convert to cm).
+When using the OpenMC sampling the inputs must be provided in meters where
+applicable (the sampling will convert to cm).
 
 ```[python]
 from parametric_plasma_source import PlasmaSource, SOURCE_SAMPLING_PATH
@@ -112,7 +150,10 @@ settings.export_to_xml()
 
 ### Sampling using Executable
 
-It is also possible to generate a source outside of OpenMC by creating the `source_generator` executable by running `cmake -H. -Bbuild` and then `cmake --build build` or `cmake --build build --target source_generator`. The `source_generator` can then be run as below:
+It is also possible to generate a source outside of OpenMC by creating the
+`source_generator` executable by running `cmake -H. -Bbuild` and then
+`cmake --build build` or `cmake --build build --target source_generator`. The
+`source_generator` can then be run as below:
 
 ```bash
 Usage:
@@ -125,8 +166,87 @@ Options:
  -v,--verbosity    Verbosity, default 5
  ```
 
-This will use OpenMC commands to sample the source generated using the specified library with the specified number of particles and output the resulting `initial_source.h5` file in the requested output directory. The `initial_source.h5` can then be analysed to check the properties of the source being generated.
+This will use OpenMC commands to sample the source generated using the
+specified library with the specified number of particles and output the
+resulting `initial_source.h5` file in the requested output directory. The
+`initial_source.h5` can then be analysed to check the properties of the source
+being generated.
 
 ## Running Tests
 
 The tests are run by executing `pytest tests` from within your virtual environment.
+
+## C API for use with Fortran
+
+A C API is provided for linking of the plasma source routine to Fortran. This is particularly useful for compilation with MCNP. To compile a static library and a test program a build script is provided in the ```parametric-plasma-source/fortran_api``` folder. This can be run in the following manner:
+
+```[bash]
+cd parametric-plasma-source/parametric_plasma_source/fortran_api
+./build_lib.sh intel
+```
+for use with intel ifort and icpc compilers or
+```[bash]
+cd parametric-plasma-source/parametric_plasma_source/fortran_api
+./build_lib.sh gnu
+```
+for use with the gnu gfortran and g++ compilers.
+
+### Use with MCNP
+
+In order to use the library with MCNPv6.2 the ```plasma_source_module.F90``` and ```mcnp_pp.F90``` should be placed in the MCNP ```src``` folder. The ```source.F90``` provided with MCNP should then be modified to:
+
+```[fortran]
+subroutine source
+
+  ! .. Use Statements ..
+  use mcnp_interfaces_mod, only : expirx
+  use mcnp_debug
+  use pp_source_mk2_mod
+
+  implicit none
+
+  call parametric_plasma_2
+
+  return
+end subroutine source
+```
+The MCNP Makefile should also be updated to point to the library during linking. This can be done by adding the first line and modifying the second line in the Makefile:
+```
+PPLIB = -lplasmasource -L$(PLASMA_SOURCE)
+COMPILE_LINE=$(LD) $(OUT_EXE)$(EXEC) $(F_OBJS) $(C_OBJS) $(ALL_LDFLAGS) $(PLOTLIBS) $(LIB_DMMP) $(EXTRALIBS) \
+             $(PPLIB)
+```
+When compiling MCNP the PLASMA_SOURCE variable then needs to be set to the folder containing ```libplasmasource.a```. An example of the compliation line would be:
+
+```
+make build CONFIG='intel openmpi omp plot' PLASMA_SOURCE=/plasma/source/dir/
+```
+
+The source parameters are passed using the rdum and idum cards in the mcnp input file
+
+```[fortran]
+ion_density_pedistal           = rdum(1)
+ion_density_seperatrix         = rdum(2)
+ion_density_origin             = rdum(3)
+ion_temperature_pedistal       = rdum(4)
+ion_temperature_seperatrix     = rdum(5)
+ion_temperature_origin         = rdum(6)
+ion_density_peaking_factor     = rdum(7)
+ion_temperature_peaking_factor = rdum(8)
+ion_temperature_beta           = rdum(9)
+minor_radius                   = rdum(10)
+major_radius                   = rdum(11)
+pedistal_radius                = rdum(12)
+elongation                     = rdum(13)
+triangularity                  = rdum(14)
+min_toroidal_angle             = rdum(15)
+max_toroidal_angle             = rdum(16)
+        
+number_of_bins                 = idum(2)
+plasma_id                      = idum(3)
+```
+Note that idum(1) is intentionally left unused. This can be used for source selection if multiple user defined sources are to be compiled in the same executable. 
+=======
+The tests are run by executing `pytest tests` from within your virtual
+environment.
+

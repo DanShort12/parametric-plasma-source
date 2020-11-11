@@ -1,9 +1,16 @@
 import os
+import pybind11
 import subprocess
 import sys
 
-from setuptools import setup, find_packages, Extension
+from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
+
+
+with open("parametric_plasma_source/__init__.py", "r") as f:
+    for line in f.readlines():
+        if "__version__" in line:
+            version = line.split()[-1].strip('"')
 
 
 class CMakeExtention(Extension):
@@ -16,7 +23,7 @@ class CMakeBuild(build_ext):
     def run(self):
         try:
             subprocess.check_output(["cmake", "--version"])
-        except OSError:
+        except FileNotFoundError:
             raise RuntimeError(
                 "CMake must be installed to build the "
                 "following extentions: "
@@ -34,7 +41,9 @@ class CMakeBuild(build_ext):
         cmake_args = [
             "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=" + extdir,
             "-DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=" + extdir,
+            "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=" + extdir,
             "-DPYTHON_EXECUTABLE=" + sys.executable,
+            "-DPYBIND11_PATH=" + pybind11.commands.DIR,
         ]
 
         cfg = "Debug" if self.debug else "Release"
@@ -51,10 +60,16 @@ class CMakeBuild(build_ext):
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
         subprocess.check_call(
-            ["cmake", ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env
+            ["cmake", extdir] + cmake_args, cwd=self.build_temp, env=env
         )
         subprocess.check_call(
-            ["cmake", "--build", "."] + build_args, cwd=self.build_temp
+            [
+                "cmake",
+                "--build",
+                ".",
+            ]
+            + build_args,
+            cwd=self.build_temp,
         )
 
 
@@ -63,16 +78,25 @@ with open("README.md", "r") as fh:
 
 setup(
     name="parametric_plasma_source",
-    version="0.0.6",
+    version=version,
     author="Andrew Davis",
     author_email="jonathan.shimwell@ukaea.uk",
     description="Parametric plasma source for fusion simulations in OpenMC",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/makeclean/parametric-plasma-source/",
-    packages=find_packages(),
+    packages=["parametric_plasma_source"],
     ext_modules=[CMakeExtention("parametric_plasma_source/plasma_source")],
-    package_data={"parametric_plasma_source": ["source_sampling.so"]},
+    package_data={
+        "parametric_plasma_source": [
+            "src/plasma_source.cpp",
+            "src/plasma_source.hpp",
+            "src/plasma_source_pybind.cpp",
+            "src/source_sampling.cpp",
+            "src/source_generator.cpp",
+            "CMakeLists.txt",
+        ]
+    },
     cmdclass=dict(build_ext=CMakeBuild),
     classifiers=[
         "Programming Language :: Python :: 3",
